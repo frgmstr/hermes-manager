@@ -1,0 +1,79 @@
+# Hermes Manager — portable operational settings.
+# NO model/provider configured by design: run `hermes -p hermes-manager setup`
+# (or `hermes -p hermes-manager model`) to pick yours.
+agent:
+  max_turns: 200
+  reasoning_effort: medium
+terminal:
+  backend: local
+  cwd: .
+  timeout: 1200
+  home_mode: auto
+  container_cpu: 8
+  container_memory: 32768
+  container_disk: 102400
+  container_persistent: true
+  docker_mount_cwd_to_workspace: false
+  lifetime_seconds: 600
+web:
+  backend: ddgs
+  use_gateway: false
+tool_output:
+  max_lines: 4000
+tool_loop_guardrails:
+  warnings_enabled: true
+  hard_stop_enabled: true
+  warn_after:
+    exact_failure: 2
+    same_tool_failure: 3
+    idempotent_no_progress: 2
+  hard_stop_after:
+    exact_failure: 5
+    same_tool_failure: 8
+    idempotent_no_progress: 5
+compression:
+  enabled: true
+  threshold: 0.5
+  target_ratio: 0.15
+  protect_last_n: 15
+  protect_first_n: 5
+prompt_caching:
+  cache_ttl: 10m
+display:
+  compact: false
+  busy_input_mode: interrupt
+  show_reasoning: true
+  streaming: true
+  skin: neon-ghost
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+delegation:
+  max_iterations: 80
+skills:
+  creation_nudge_interval: 15
+command_allowlist:
+  - execute_code
+  - recursive delete
+  - script execution via heredoc
+  - stop/restart hermes gateway (kills running agents)
+  - delete in root path
+  - overwrite project env/config via redirection
+  - script execution via -e/-c flag
+security:
+  redact_secrets: true
+  tirith_enabled: true
+  tirith_path: tirith
+  tirith_timeout: 5
+  tirith_fail_open: true
+code_execution:
+  timeout: 1200
+  max_tool_calls: 200
+sessions:
+  auto_archive: true
+session_reset:
+  mode: both
+  idle_minutes: 1440
+  at_hour: 4
+group_sessions_per_user: true
+_config_version: 34

@@ -1,0 +1,46 @@
+name: hermes-manager
+version: 1.0.0
+description: "Hermes meta-agent: manage profiles, skills, cron, memory, gateway health, and fleet hygiene for your own Hermes install"
+hermes_requires: ">=0.12.0"
+author: "KB"
+license: "MIT"
+
+# Keys the manager can use. Nothing is required at install time — the profile
+# has no model configured by design (run `hermes -p hermes-manager setup`).
+env_requires:
+  - name: NOUS_API_KEY
+    description: "Nous Portal API key for model access (or use any other provider key via `hermes setup`)"
+    required: false
+  - name: OPENROUTER_API_KEY
+    description: "OpenRouter key as an alternative model provider"
+    required: false
+  - name: ANTHROPIC_API_KEY
+    description: "Anthropic key as an alternative model provider"
+    required: false
+  - name: GITHUB_TOKEN
+    description: "GitHub token for the git-based backup script (hermes-backup-recovery skill)"
+    required: false
+  - name: TELEGRAM_BOT_TOKEN
+    description: "Telegram bot token if you want watchdog/health alerts delivered to Telegram"
+    required: false
+  - name: TELEGRAM_HOME_CHANNEL
+    description: "Telegram chat/channel ID used with TELEGRAM_BOT_TOKEN for alert delivery"
+    required: false
+  - name: FIRECRAWL_API_KEY
+    description: "Firecrawl key for web extraction (managed web tools)"
+    required: false
+  - name: BROWSERBASE_API_KEY
+    description: "Browserbase key for cloud browser automation (optional)"
+    required: false
+  - name: LMSTUDIO_API_KEY
+    description: "API key for a local LM Studio server if you run local models"
+    required: false
+
+# Paths the installer copies into the profile (and replaces on update).
+# scripts/ is NOT in the installer's default owned list — declare it explicitly.
+distribution_owned:
+  - SOUL.md
+  - config.yaml
+  - README.md
+  - skills
+  - scripts
