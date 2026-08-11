@@ -19,6 +19,9 @@ A sanitized, portable version of the author's personal "meta-agent" profile: an 
   - `cron-troubleshooting` — diagnose failing cron jobs (incl. gateway ticker stall)
   - `hermes-backup-recovery` / `hermes-backup-debug` — git-based backup + repair
   - `model-change-checklist` — every config location to touch on an LLM swap
+  - `hermes-state-db-guard` — cross-profile `state.db` corruption watchdog + auto-restore
+    (detect → alert → forensic copy → restore from rotating known-good backups)
+  - `hermes-profile-distribution` — package, sanitize, test, and publish shareable profiles
 - **Scripts** — fleet tools used by the skills and suggested cron jobs:
   - `cron_health_check.py` — daily health audit across profiles (rotates stale state.db backups)
   - `skill_hygiene_audit.py` — skill hygiene scan (broken refs, stale content, collisions)
