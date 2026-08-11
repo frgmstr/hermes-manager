@@ -38,8 +38,13 @@ def run_cmd(cmd, timeout=30):
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
-# Full path to hermes binary (avoids PATH issues when running per-profile)
-HERMES_BIN = "C:\\Users\\KB\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\hermes.exe"
+# Full path to hermes binary (avoids PATH issues when running per-profile).
+# Derived from HERMES_HOME so no machine-specific paths (e.g. C:\Users\<user>\...)
+# leak into this shared public distribution.
+if os.name == "nt":
+    HERMES_BIN = os.path.join(HERMES_HOME, "hermes-agent", "venv", "Scripts", "hermes.exe")
+else:
+    HERMES_BIN = os.path.join(HERMES_HOME, ".venv", "bin", "hermes")
 
 def check_lmstudio():
     """Check if LM Studio is running and has a model loaded."""
