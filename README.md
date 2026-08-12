@@ -2,6 +2,8 @@
 
 A sanitized, portable version of the author's personal "meta-agent" profile: an agent whose whole job is managing Hermes itself — profiles, skills, cron, memory, gateway health, and fleet hygiene. Install it as its **own profile**; it does not touch your default profile or any existing one.
 
+> **Two ways to get it.** The easiest is a single-file export/import (one command, credentials stripped). The git-repo route below enables `hermes profile update` for ongoing updates. Both are documented under [Install](#install).
+
 ## What you get
 
 - **`SOUL.md`** — the manager's system prompt: hard invariants, routing table, profile-management workflow, fleet/cron doctrine, verification discipline.
@@ -37,6 +39,28 @@ A sanitized, portable version of the author's personal "meta-agent" profile: an 
 - `git` on PATH (the installer clones with it; any auth your shell already handles works)
 
 ## Install
+
+### Option A — single file (easiest, one command)
+
+The author publishes a one-shot archive (skills, memory, persona, crons, plugins, settings, themes — **credentials stripped**). Grab the `hermes-manager.tar.gz` file and import it as a new profile:
+
+```bash
+hermes    # open a chat session
+/import hermes-manager.tar.gz --name hermes-manager
+```
+
+> Requires Hermes with the profile `/export` + `/import` commands (shipped Aug 2026 — run `/help` and look for `export`/`import`). Note this `/import` is the in-session profile command, not `hermes import` (backup restore) or `hermes sessions export` (session-only).
+
+Want to produce the archive yourself from this repo? Load the profile and run `/export` inside it:
+
+```bash
+hermes -p hermes-manager chat
+/export hermes-manager -o hermes-manager.tar.gz
+```
+
+The archive is a single shareable `.tar.gz` you can hand to anyone or drop on a VPS. Verify contents before sharing: `tar -tzf hermes-manager.tar.gz`. The downside vs. Option B: no `hermes profile update` — pull a fresh export for updates.
+
+### Option B — git repo (versioned, enables `hermes profile update`)
 
 ```bash
 # From a git URL (recommended — enables `hermes profile update`)
@@ -116,6 +140,8 @@ Your memories, sessions, `.env`, and any config.yaml tweaks are **never** touche
 ## Customizing
 
 Fork the repo → edit `SOUL.md` (personality/doctrine), `config.yaml` (defaults), add skills under `skills/`, bump `version:` in `distribution.yaml`, commit, tag a release. Installers pull the latest with `hermes profile update`. `local/` in the profile dir is your personal override namespace — updates never touch it.
+
+For a **quick one-off fork you don't want to version**, just run `/export` inside the profile and share the single file — no repo, no tag, no `distribution.yaml`.
 
 ---
 
