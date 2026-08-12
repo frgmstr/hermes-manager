@@ -22,6 +22,7 @@ A sanitized, portable version of the author's personal "meta-agent" profile: an 
   - `hermes-state-db-guard` — cross-profile `state.db` corruption watchdog + auto-restore
     (detect → alert → forensic copy → restore from rotating known-good backups)
   - `hermes-profile-distribution` — package, sanitize, test, and publish shareable profiles
+  - `cryptography-metadata-fix` — repair pip reporting `cryptography Version: None` after a failed update (surgical, no reinstall)
 - **Scripts** — fleet tools used by the skills and suggested cron jobs:
   - `cron_health_check.py` — daily health audit across profiles (rotates stale state.db backups)
   - `skill_hygiene_audit.py` — skill hygiene scan (broken refs, stale content, collisions)
