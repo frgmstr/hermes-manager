@@ -1,5 +1,5 @@
 name: hermes-manager
-version: 1.3.0
+version: 1.3.1
 description: "Hermes meta-agent: manage profiles, skills, cron, memory, gateway health, and fleet hygiene for your own Hermes install"
 hermes_requires: ">=0.12.0"
 author: "KB"

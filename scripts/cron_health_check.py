@@ -105,7 +105,11 @@ def rotate_malformed_backups(issues, info):
         info.append(f"🧹 Rotated malformed state.db backups (kept newest {MALFORMED_KEEP} set(s)): {shown}{extra}")
 
 def parse_schedule_interval_hours(schedule):
-    """Extract expected interval in hours from schedule strings like 'every 360m' or '0 9 * * *'."""
+    """Extract expected interval in hours from schedule strings like 'every 360m' or '0 9 * * *'.
+
+    Properly handles cron day-of-week / day-of-month so weekly jobs (e.g. '0 8 * * 1')
+    aren't treated as daily (which would false-flag them stale ~1 day after running).
+    """
     if not schedule:
         return None
     # "every Nh" / "every Nm" formats
@@ -116,13 +120,41 @@ def parse_schedule_interval_hours(schedule):
         hours = val if unit == "h" else val / 60.0
         return max(hours, 0.05)  # avoid div-by-zero for sub-minute schedules
 
-    # Cron-style: "0 9 * * *" (daily at 9am -> ~24h), "*/30 * * * *" (~0.5h)
-    if re.match(r"^[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s+", schedule):
-        # Crude: count as 24h for daily, detect */N minutes
-        m = re.search(r"\*/(\d+)\s+\*", schedule)
+    # Cron-style: 5 fields "min hour dom mon dow"
+    if re.match(r"^[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s*$", schedule):
+        parts = schedule.split()
+        minute, hour, dom, mon, dow = parts[0], parts[1], parts[2], parts[3], parts[4]
+
+        # */N in minute field -> every N minutes
+        m = re.search(r"\*/(\d+)", minute)
         if m:
             return int(m.group(1)) / 60.0
-        return 24.0  # assume daily
+
+        # Day-of-week is a specific value or single-day list/range (e.g. "1", "1-5")
+        # -> job runs only on those days, so the expected gap is ~24h * days-per-cycle
+        if dow.strip() != "*":
+            # A fixed single dow value (e.g. "1" = Monday) -> weekly (~168h).
+            if re.fullmatch(r"\d{1,7}", dow.strip()):
+                return 24.0 * 7.0
+            # A contiguous range (e.g. "1-5" = weekdays) -> runs daily within the week.
+            if re.match(r"^\d{1,7}-\d{1,7}$", dow.strip()):
+                lo, hi = (int(x) for x in dow.split("-"))
+                return 24.0 if hi >= lo else 24.0 * 6.0  # wrap-around weekend -> ~daily-ish
+            # A comma list of specific days -> gap is ~24h * days / len(list)
+            if "," in dow:
+                days = [int(x) for x in dow.split(",") if x.strip().isdigit()]
+                if days:
+                    return 24.0 * 7.0 / max(len(days), 1)
+            return 24.0  # unknown dow pattern -> assume daily
+
+        # Day-of-month is a specific value -> monthly-ish
+        if dom.strip() != "*":
+            if re.fullmatch(r"\d{1,2}", dom.strip()):
+                return 24.0 * 30.0
+            return 24.0
+
+        # No day constraints and hour is a fixed value -> daily (~24h)
+        return 24.0
 
     # ISO timestamp (one-shot): can't estimate interval
     return None

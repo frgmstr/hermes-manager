@@ -1,8 +1,8 @@
 ---
 name: cron-troubleshooting
 description: "Diagnose and fix failing Hermes cron jobs."
-version: 1.0.0
-author: agent
+version: 1.1.0
+author: Hermes
 ---
 
 # Cron Job Troubleshooting
@@ -37,6 +37,26 @@ A health-check/watchdog script exits non-zero when it finds issues → cron mark
 - Cron scripts run under Hermes' own Python (`venv/Scripts/python`), **not** the terminal tool's git-bash shell. A `python3: command not found` in the terminal tool does NOT mean cron will fail.
 - Script paths in `jobs.json` are resolved relative to `~/.hermes/scripts/`. Ensure the file actually exists there.
 - On Windows, avoid `C:\c\Users\...` mangled paths — use forward slashes `C:/Users/...` or `~/` in scripts.
+
+### 3b. Wrapper Scripts: Drive-Letter Paths + Explicit External Interpreter
+
+When a cron script (`no_agent: true`) wraps another script that needs packages not in Hermes' venv Python, two rules apply:
+
+1. **Explicit external interpreter, not `sys.executable`.** The cron scheduler runs `.py` scripts under Hermes' own venv Python (`sys.executable`). If the wrapper then calls `sys.executable` to run a target that needs packages only in an external install (PIL, reportlab, weasyprint), those imports fail with exit code 1 and the scheduler reports "Script exited with code 1" without the traceback. Hardcode the external interpreter path instead.
+
+2. **Drive-letter paths (`C:/...`), never MSYS (`/c/...`).** The cron scheduler runs `.py` scripts under **native Windows Python**, which cannot launch MSYS-style `/c/...` paths (`FileNotFoundError: [WinError 2]`). `C:/...` (forward slash, drive prefix) works under BOTH git-bash and native Windows Python. `.sh` wrappers run under bash so `/c/` works there, but `C:/` works in both — prefer it everywhere.
+
+```python
+# BAD — native venv Python can't launch /c/...
+PY314 = "/c/Users/<user>/AppData/Local/Programs/Python/Python314/python.exe"
+subprocess.run([PY314, TARGET, ...])   # WinError 2
+
+# GOOD — drive-letter form works under bash AND native Python
+PY314 = "C:/Users/<user>/AppData/Local/Programs/Python/Python314/python.exe"
+subprocess.run([PY314, TARGET, ...])
+```
+
+See `references/native-python-path-and-script-bugs.md` for the full bug class, including the false "STALE" flag on weekly jobs, `UnboundLocalError` from a var assigned inside a conditional block, wrappers passing flags a target script rejects, and the `lms load` + `/v1/models` poll preflight for LM-Studio-backed script jobs.
 
 ### 4. No Delivery Target (`no delivery target resolved for deliver=telegram`)
 
