@@ -4,15 +4,21 @@ import subprocess
 import sys
 from datetime import datetime
 
+def _default_home():
+    return (os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "hermes")
+            if os.name == "nt" else os.path.expanduser("~/.hermes"))
+
+
 def _load_env():
     """Load GITHUB_TOKEN from environment or .env files."""
     token = os.environ.get("GITHUB_TOKEN", "")
     if token:
         return token
     # Try loading from .env in script dir, local repo dir, and Hermes home
-    hermes_home = os.path.expanduser("~/AppData/Local/hermes")
+    hermes_home = os.environ.get("HERMES_HOME", _default_home())
     for env_path in [os.path.join(os.path.dirname(__file__), ".env"),
-                     os.path.join(LOCAL_REPO_DIR := os.path.expanduser("~/hermes-backup-local"), ".env"),
+                     os.path.join(LOCAL_REPO_DIR := os.path.expanduser(
+                         os.environ.get("HERMES_BACKUP_LOCAL_DIR", "~/hermes-backup-local")), ".env"),
                      os.path.join(hermes_home, ".env")]:
         if os.path.exists(env_path):
             with open(env_path, 'r') as f:
@@ -22,12 +28,15 @@ def _load_env():
                         return line.split("=", 1)[1].strip().strip('"').strip("'")
     return ""
 
-# Configuration
-REPO_URL = "https://github.com/frgmstr/hermes-backup"
+
+# Configuration — all overridable via env for portability across machines.
+# HERMES_HOME / HERMES_BACKUP_REPO / HERMES_BACKUP_LOCAL_DIR / HERMES_BACKUP_SOURCE
+HERMES_HOME = os.environ.get("HERMES_HOME", _default_home())
+REPO_URL = os.environ.get("HERMES_BACKUP_REPO", "https://github.com/<your-github-user>/hermes-backup")
 TOKEN = _load_env() or os.environ.get("GITHUB_TOKEN", "") or "«redacted:ghp_…»"
 AUTH_URL = REPO_URL.replace("https://", f"https://{TOKEN}@") if TOKEN and not TOKEN.startswith("«") else REPO_URL
-LOCAL_REPO_DIR = os.path.expanduser("~/hermes-backup-local")
-SOURCE_DIR = os.path.expanduser("~/AppData/Local/hermes")
+LOCAL_REPO_DIR = os.path.expanduser(os.environ.get("HERMES_BACKUP_LOCAL_DIR", "~/hermes-backup-local"))
+SOURCE_DIR = os.path.expanduser(os.environ.get("HERMES_BACKUP_SOURCE", HERMES_HOME))
 
 # Files and directories to backup
 INCLUDE_PATTERNS = [

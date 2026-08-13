@@ -14,7 +14,8 @@ description: HermGIT BU cron push failures — diagnose and repair.
 
 1. **Check if remote repo exists**  
    ```bash
-   curl -sI https://github.com/frgmstr/hermes-backup | head -1
+   # Replace <owner>/<repo> with your backup repo
+   curl -sI https://github.com/<owner>/<repo> | head -1
    # 404 = repo deleted/never existed; 200 = OK
    ```
 
@@ -63,11 +64,11 @@ find ~/.hermes/profiles -name '*state.db.malformed-backup*' -delete 2>/dev/null
 - **`_load_env()`**: Loads token from env var → `.env` in scripts dir → backup repo `.env` → Hermes home `.env`
 - **Remote URL**: Script now sets `git remote set-url origin "https://TOKEN@github.com/..."` on each run so push works even if credentials changed
 
-## Verification Evidence (last verified: 2026-08-04)
+## Verification Evidence (pattern — replace with your repo/paths)
 ```bash
 # End-to-end test — script exits 0 and commit appears on GitHub
 python ~/.hermes/scripts/github_backup.py → "Backup completed successfully!" EXIT: 0
-curl -s https://api.github.com/repos/frgmstr/hermes-backup/commits | head shows latest backup commit ✅
+curl -s https://api.github.com/repos/<owner>/<repo>/commits | head shows latest backup commit ✅
 ```
 
 ## Consolidation Note (2026-08-04)

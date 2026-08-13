@@ -1,8 +1,9 @@
 # Publishing a Distribution to GitHub (PAT auth, no gh CLI)
 
-Verified end-to-end 2026-08-10 publishing `frgmstr/hermes-manager`. All commands
-use the GITHUB_TOKEN from the default profile `.env` — never paste the token into
-a URL or persist it in `.git/config`.
+Verified end-to-end 2026-08-10 publishing the `hermes-manager` distribution. All
+commands use the GITHUB_TOKEN from the default profile `.env` — never paste the
+token into a URL or persist it in `.git/config`. Replace `<owner>/<repo>` with
+your own GitHub repo.
 
 ## 1. Create the repo (REST API, Bearer auth)
 
