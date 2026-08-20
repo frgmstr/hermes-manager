@@ -54,6 +54,10 @@ hermes update
 
 If the update reports config migrations, do NOT hand-edit anything — the migration writes the new schema itself. Afterwards run `hermes config check` to confirm the schema is current.
 
+**Windows:** if `hermes update` defers/loops (the `cryptography (_rust.pyd)` self-lock, repeated attempts), DO NOT retry it — the built-in path is a dead-end by construction. Follow the `windows-update-troubleshooting` skill (detached external update script; verified end-to-end 2026-08-18 for v0.20.1→v0.20.3). The agent's terminal is also blocked from the live checkout by the self-repo guard — a detached PowerShell script launched via `Start-Process` is the sanctioned external execution.
+
+**Windows + Desktop app open (v0.20.4, 2026-08-18):** `hermes update` can complete the git pull (12 commits) but then fail the editable venv reinstall with `failed to remove file ...Scripts/hermes.exe (os error 32)` because the Hermes Desktop backend (e.g. `python -m http.server 4321`) holds the exe. Before forcing (`--force-venv`), diff the delta for dependency changes: `git diff --stat <old-tag>..origin/main | grep -iE "pyproject|requirements"`. If pyproject.toml is UNCHANGED, the editable reinstall failure is harmless — the new source code is already in place (editable install = source dir), and the stale hermes.exe stub is functionally identical. Verify with `venv python -c "import hermes_cli"` and full Phase 4; the next clean update (Desktop closed) will re-stamp the exe. The ZIP fallback 429 (rate limit) after a failed venv path is a red herring in this case — do NOT let it make you think nothing updated.
+
 ### Phase 4: Post-Update Verification (MANDATORY — never assume)
 
 | Check | Command | Pass condition |

@@ -8,12 +8,87 @@ Schedule: daily at 9 AM via `hermes cron create "0 9 * * *" --script skill_hygie
 """
 import os
 import sys
+import json
 import yaml
 import glob
+import platform
 
 _default_home = (os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")), "hermes") if os.name == "nt" else os.path.expanduser("~/.hermes"))
 HERMES_HOME = os.environ.get("HERMES_HOME", _default_home)
 SKILLS_DIR = os.path.join(HERMES_HOME, "skills")
+AGENT_ROOT = os.path.join(HERMES_HOME, "hermes-agent")
+
+
+def _current_platform():
+    sysname = platform.system().lower()
+    return {"windows": "windows", "linux": "linux", "darwin": "macos"}.get(sysname, sysname)
+
+
+def _disabled_skill_names():
+    """Read skills.disabled from config.yaml (empty set on any error)."""
+    try:
+        with open(os.path.join(HERMES_HOME, "config.yaml"), encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        raw = (cfg.get("skills") or {}).get("disabled") or []
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                raw = [raw]
+        return {str(s).strip() for s in raw if str(s).strip()}
+    except Exception:
+        return set()
+
+
+def _platform_index():
+    """Map skill name -> declared platforms (first SKILL.md found wins).
+
+    Covers user-local, bundled, and optional skill roots — usage telemetry
+    tracks all of them, so the platform check must see the same scope.
+    """
+    index = {}
+    roots = [SKILLS_DIR, os.path.join(AGENT_ROOT, "skills"), os.path.join(AGENT_ROOT, "optional-skills")]
+    for root in roots:
+        for path in glob.glob(os.path.join(root, "**", "SKILL.md"), recursive=True):
+            if ".archive" in path or ".hub" in path:
+                continue
+            name = os.path.basename(os.path.dirname(path))
+            if name in index:
+                continue
+            try:
+                with open(path, encoding="utf-8") as f:
+                    content = f.read()
+                if not content.startswith("---"):
+                    continue
+                end = content.find("\n---\n", 3)
+                if end == -1:
+                    continue
+                fm = yaml.safe_load(content[3:end]) or {}
+                plats = fm.get("platforms")
+                if isinstance(plats, list) and plats:
+                    index[name] = [str(p) for p in plats]
+            except Exception:
+                continue
+    return index
+
+
+def _is_excluded(name, stats, disabled, plat_index):
+    """True if a never-used skill is already handled or inert on this host.
+
+    Flags only *open* issues: skills that are enabled, curator-active, and
+    usable on the current platform. A skill that is already disabled,
+    already archived, or platform-incompatible (e.g. macos-only on Windows)
+    is not an outstanding problem — flagging it again forever is what made
+    the daily report re-raise the same 10 names for weeks.
+    """
+    if name in disabled:
+        return True
+    if stats.get("state") == "archived":
+        return True
+    plats = plat_index.get(name)
+    if plats is not None and _current_platform() not in plats:
+        return True
+    return False
 
 
 def check_description_lengths():
@@ -108,17 +183,25 @@ def check_pruned_skills():
 
 
 def check_stale_skills():
-    """Check curator usage telemetry for stale/unused skills."""
+    """Check curator usage telemetry for stale/unused skills.
+
+    Only flags *open* issues: never-used skills that are still enabled, not
+    archived, and usable on the current platform. Already-handled skills
+    (disabled in config, already archived, or platform-incompatible) are
+    excluded so the daily report doesn't re-raise the same names forever.
+    """
     issues = []
     usage_path = os.path.join(SKILLS_DIR, ".usage.json")
 
     try:
-        import json
         with open(usage_path) as f:
             usage = json.load(f)
 
         from datetime import datetime, timezone, timedelta
         cutoff = datetime.now(timezone.utc) - timedelta(days=60)
+
+        disabled = _disabled_skill_names()
+        plat_index = _platform_index()
 
         for skill_name, stats in usage.items():
             if not isinstance(stats, dict):
@@ -127,6 +210,9 @@ def check_stale_skills():
             use_count = stats.get("use_count", 0)
             state = stats.get("state", "unknown")
             last_active_str = stats.get("last_activity_at", "")
+
+            if _is_excluded(skill_name, stats, disabled, plat_index):
+                continue
 
             # Never used and not pinned — candidate for pruning
             if use_count == 0 and state != "pinned":
@@ -163,9 +249,11 @@ def main():
     pruned_issues = check_pruned_skills()
     all_issues.extend(pruned_issues)
 
-    # 3. Stale/unused skills from curator telemetry
+    # 3. Stale/unused skills from curator telemetry (only open, not-handled)
     stale_issues = check_stale_skills()
-    all_issues.extend(stale_issues[:10])  # cap to stay concise
+    all_issues.extend(stale_issues)
+    if len(stale_issues) > 25:
+        all_issues.append(f"… and {len(stale_issues) - 25} more stale-skill candidates (full list: hermes curator usage)")
 
     # Report (watchdog pattern: only output if there are issues)
     if all_issues:

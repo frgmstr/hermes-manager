@@ -35,7 +35,9 @@ def get_profile_dirs():
     return profiles
 
 def run_cmd(cmd, timeout=30):
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    flags = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW: hide console children
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout,
+                            creationflags=flags)
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 # Full path to hermes binary (avoids PATH issues when running per-profile).
@@ -159,6 +161,46 @@ def parse_schedule_interval_hours(schedule):
     # ISO timestamp (one-shot): can't estimate interval
     return None
 
+def last_scheduled_occurrence_hours(schedule):
+    """Hours since the most recent scheduled occurrence of a cron dow-range
+    spec (e.g. '30 20 * * 1-5'), or None for any other schedule shape.
+
+    Weekday jobs have a natural Fri->Mon gap (~72h) that the flat 24h interval
+    from parse_schedule_interval_hours can't represent, so they false-flag
+    STALE every weekend. Comparing the last run against the actual most
+    recent occurrence (2h tolerance for scheduler lag) keeps detection sharp:
+    a genuinely missed weekday run is still flagged at the next check.
+    """
+    if not schedule:
+        return None
+    if not re.match(r"^[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s+[\d*/,\-]+\s*$", schedule):
+        return None
+    minute, hour, dom, mon, dow = schedule.split()
+    if dom.strip() != "*" or mon.strip() != "*":
+        return None
+    if not (re.fullmatch(r"\d{1,2}", minute) and re.fullmatch(r"\d{1,2}", hour)):
+        return None
+    if not re.match(r"^\d{1,7}-\d{1,7}$", dow.strip()):
+        return None
+    lo, hi = (int(x) for x in dow.split("-"))
+    if hi >= lo:
+        allowed = set(range(lo, hi + 1))
+    else:  # wrap-around range like 5-1 (Fri..Mon)
+        allowed = set(range(lo, 7)) | {0} | set(range(0, hi + 1))
+    allowed = {x % 7 for x in allowed}  # normalize cron dow 7 (Sun) -> 0
+    now = datetime.now().astimezone()
+    for days_back in range(0, 8):
+        day = (now - timedelta(days=days_back)).date()
+        cron_wd = (day.weekday() + 1) % 7  # python Mon=0 -> cron Sun=0
+        if cron_wd in allowed:
+            cand = now.replace(year=day.year, month=day.month, day=day.day,
+                               hour=int(hour), minute=int(minute),
+                               second=0, microsecond=0)
+            if cand <= now:
+                return (now - cand).total_seconds() / 3600.0
+            # today's occurrence is still in the future; keep looking back
+    return None
+
 def check_profile(profile, issues, info):
     """Check gateway + cron jobs for a single profile."""
     prof_dir = os.path.join(HERMES_HOME, "profiles", profile) if profile != "default" else HERMES_HOME
@@ -171,7 +213,8 @@ def check_profile(profile, issues, info):
         """Run a command with the per-profile HERMES_HOME set."""
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True, timeout=30,
-            env=env
+            env=env,
+            creationflags=0x08000000 if os.name == "nt" else 0,
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()
 
@@ -289,7 +332,20 @@ def _evaluate_job(job, issues, info, profile):
             hours_since = (now_utc - last_run).total_seconds() / 3600
 
             expected_h = parse_schedule_interval_hours(schedule)
-            if expected_h and hours_since > expected_h * STALE_MULTIPLIER:
+            last_occ_h = last_scheduled_occurrence_hours(schedule)
+            if last_occ_h is not None:
+                # dow-range job (e.g. '30 20 * * 1-5'): multi-day natural gaps
+                # (Fri->Mon) are normal. Stale only if it MISSED its most
+                # recent scheduled occurrence (2h tolerance for scheduler lag).
+                if hours_since > last_occ_h + 2.0:
+                    issues.append(
+                        f"⚠ Profile '{profile}' — Job {job_id} ({job_name}) is STALE "
+                        f"(last ran {hours_since:.1f}h ago but last scheduled "
+                        f"occurrence was {last_occ_h:.1f}h ago)"
+                    )
+                else:
+                    info.append(f"✓ Profile '{profile}' — Job {job_id} ({job_name}) last ran {hours_since:.1f}h ago")
+            elif expected_h and hours_since > expected_h * STALE_MULTIPLIER:
                 issues.append(
                     f"⚠ Profile '{profile}' — Job {job_id} ({job_name}) is STALE "
                     f"(last ran {hours_since:.1f}h ago, expected every ~{expected_h:.1f}h)"

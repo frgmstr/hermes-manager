@@ -108,7 +108,7 @@ Cross-profile write blocked by soft guard: ... belongs to Hermes profile '<profi
 ## Path Mangling in Windows Git-Bash
 
 ```
-python.exe: can't open file 'C:\\\\\\\\c\\\\\\\\Users\\\\\\\\KB\\\\\\\\AppData\\\\\\\\Local\\\\\\\\hermes\\\\\\\\scripts\\\\\\\\github_backup.py'
+python.exe: can't open file 'C:\\\\\\\\c\\\\\\\\Users\\\\\\\\<user>\\\\\\\\AppData\\\\\\\\Local\\\\\\\\hermes\\\\\\\\scripts\\\\\\\\github_backup.py'
 ```
 
 MSYS converts `C:\\` to `/c/` but double-escaping creates `C:\\\\c\\...`. Use forward slashes or `~/` in scripts. Python on Windows does not understand MSYS-style paths (`/c/Users/...`) — use native Windows paths (`C:/Users/...` or `C:\\Users\\...`).

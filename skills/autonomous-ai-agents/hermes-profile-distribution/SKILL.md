@@ -23,6 +23,23 @@ metadata:
 
 Native mechanism: `hermes profile install <git-url|local-dir>` — a git repo (or local dir) with `distribution.yaml` at root. Recipients run one command and get the whole agent; updates via `hermes profile update <name>` preserve their memories/sessions/.env/config.yaml. Docs: user-guide/profile-distributions.
 
+## Complementary: native single-file `/export` + `/import` (NEW, Aug 2026)
+
+Nous announced a first-class single-file profile portability path (see X @NousResearch Aug 12, 2026). It is the EASIEST way to hand a profile to one person / one VPS, and complements the git-repo route above:
+
+- `/export [profile] [-o output.tar.gz]` — (in-session, CLI/TUI only) saves the current (or named) profile as a single `.tar.gz` archive with **credentials stripped** — includes skills, memory, persona (SOUL), crons, plugins, settings/config, desktop themes and layouts.
+- `/import <archive.tar.gz> [--name <name>]` — (in-session, CLI/TUI only) loads the archive as a **new profile** (cannot overwrite `default`). Recipient runs one command and is up and running.
+
+**When to reach for which:**
+- Single-file `/export` + `/import`: quick handoff to a friend or a fresh VPS, no git repo, no `distribution.yaml`. Credentials auto-stripped by the exporter.
+- Git-repo distribution (rest of this skill): versioned/public/team sharing, recipients get `hermes profile update` for ongoing updates that preserve their memories/sessions/.env.
+
+**Authoring notes:**
+- `/export` strips credentials for you, but the rest of this skill's sanitization discipline still matters for any secrets living OUTSIDE the exporter's strip-list (e.g. keys hardcoded inside a skill's `scripts/*.py`, `.env`-style values baked into SOUL, machine-specific paths). Run the Sanitization Checklist + `verify_distribution.py` before exporting anything you don't want shared.
+- The exporter uses the same hard-excluded set as the git installer (`.env`, `auth.json`, `memories/`, `sessions/`, `state.db*`, caches), so recipient history always stays local.
+- `distribution_owned` / `scripts/` gotcha does NOT apply to `/export` — the exporter packages the whole profile tree (scripts included) by definition. But verify the archive contents before sharing (`tar -tzf output.tar.gz`).
+- These commands are CLI-only (`cli_only=True`) — they are in-session slash commands, not `hermes` subcommands. Don't confuse `/import` (profile) with `hermes import` (backup restore) or `hermes sessions export` (session-only).
+
 ## Distribution Layout
 ```
 my-agent/
@@ -100,6 +117,10 @@ See references/github-publishing.md for full commands and quirks. Summary:
 - **Installers' config.yaml is preserved on update** unless `--force-config` — don't rely on shipped config changes reaching users who tuned theirs.
 - **Distributions are unsigned** — README should state the trust model (same trust level as a browser extension).
 - **Test-install env preview** marks already-set env vars "✓ set" from the shell — good UX signal that env_requires is working.
+- **`verify_distribution.py --patterns` requires VALID JSON, and nested shell quoting mangles it** — passing `--patterns '["<personal-term>","..."]'` through `terminal`/bash inside another quoting layer collapses it to `[<personal-term>,...]` → `FAIL --patterns is not valid JSON`. When the value has to survive nested quotes, prefer `execute_code` and pass `--patterns` as a Python list literal (no shell layer), or write it to a temp JSON file and pass `--patterns-file`. The scan is a plain substring match over every shipped file; use it to prove the final diff is clean right before commit.
+- **`verify_distribution.py` "no hard-excluded paths shipped" FAIL for `skills/.../hermes-agent` is a known BENIGN false positive** — it flags the bundled `hermes-agent` *skill* folder against the hard-excluded `hermes-agent/` *package* pattern (same family as the `.gitignore` anchor trap). A clean dist still shows this FAIL; interpret it, don't delete the skill or chase it.
+- **`git tree clean` FAIL right before release is expected** — the verifier can't pass that check mid-edit; run it, then commit. Re-run after commit to see it clear.
+- **Doc-only/version-bump release verification** — for a README/version-only change, skip the full test-install but confirm the release actually landed: (a) `curl` the raw `distribution.yaml` on the remote and grep the new `version:`; (b) grep the raw README for the new/changed heading; (c) `git ls-remote --tags origin` for the new tag; (d) blob-count equality (see github-publishing.md). Optionally run a throwaway temp Python script that `yaml.safe_load`s the changed manifest and asserts the bumped value + manifest integrity (name, hermes_requires, env_requires list shape, distribution_owned includes `scripts`/`skills`, no secret-named keys), then delete it.
 
 ## Related
 - `hermes-profile-manager` (user-owned) Phase 5b carries the complementary authoring outline — this skill is the curator-maintained operational companion. Overlap noted for the curator.

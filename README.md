@@ -17,6 +17,7 @@ A sanitized, portable version of the author's personal "meta-agent" profile: an 
   - `skill-auditor` — broken refs, stale content, name collisions, memory hygiene
   - `model-config-propagator` — change models across profiles safely (drift-guard aware)
   - `hermes-update-safety` — pre/post-update backup + verification
+  - `windows-update-troubleshooting` — when `hermes update` defers/loops on Windows (cryptography self-lock, dead-end built-in button, detached external update)
   - `merge-reconciler` — neutral resolution of agent-vs-agent merge conflicts
   - `cron-troubleshooting` — diagnose failing cron jobs (incl. gateway ticker stall)
   - `hermes-backup-recovery` / `hermes-backup-debug` — git-based backup + repair

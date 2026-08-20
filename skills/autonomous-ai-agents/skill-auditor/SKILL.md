@@ -109,6 +109,13 @@ for skill, stats in sorted(usage.items(), key=lambda x: x[1].get('last_activity_
 - `last_activity_at > 60 days ago` AND `state == "stale"` → archive via curator
 - **Never auto-prune** pinned skills — they're explicitly protected
 
+**Exclude already-handled skills from "open" flags** (this is the bug that made the daily `skill_hygiene_audit.py` re-report the same names for weeks): a never-used skill is NOT an open issue if any of these is true — filter it out before reporting:
+1. It's already in `skills.disabled` in config.yaml (action already taken)
+2. Its telemetry `state` is `archived`
+3. Its SKILL.md `platforms` frontmatter excludes the current host (e.g. `platforms: [macos]` on a Windows machine) — the platform list lives in the SKILL.md frontmatter and covers bundled/optional skill roots, not just user-local ones.
+
+Only flag never-used skills that are still **enabled, curator-active, and usable on this host** — that's a decision the user still has to make.
+
 ### Phase 5: Description Length Validation
 
 The system prompt skill index truncates descriptions to 57 chars + "...". If a description is >60 chars, the routing signal is destroyed. Check all SKILL.md files:
@@ -187,7 +194,8 @@ When auditing skills across profiles:
 | Broken linked file reference | Recreate the missing file or remove the reference from SKILL.md | `skill_manage(action='write_file')` or `patch` |
 | `[SKILL_PRUNED]` content lost | Reload via `skill_view(name)` to trigger recovery | `skill_view` |
 | Name collision (unintended) | Rename one skill's directory + update frontmatter name field | File rename + patch |
-| Stale unused skill | Archive via curator: `hermes curator archive <name>` (never auto-delete) | CLI or `skill_manage(action='delete', absorbed_into=...)` for intentional merges |
+| Stale unused skill, **agent-created** | Archive via curator: `hermes curator archive <name>` (never auto-delete) | CLI |
+| Stale unused skill, **bundled/hub-installed** | Curator CANNOT manage these — disable via `skills.disabled` using the framework write path (`scripts/fix_skills_disabled.py <names>`; `hermes config set` does NOT work for this key — a JSON string becomes one inert skill name). Disabled stays recoverable; confirm groups with user first | script |
 | Description too long (>60 chars) | Shorten to ≤60 chars, move detail into body | `patch` on SKILL.md frontmatter |
 | Overlapping skills (merge candidates) | Create umbrella skill, delete redundant with `absorbed_into` | `skill_manage` create + delete |
 | Memory near-limit / duplicated / stale-progress | Batch-consolidate: remove stale, merge overlaps, add consolidated fact in one call | `memory` tool `operations` batch |

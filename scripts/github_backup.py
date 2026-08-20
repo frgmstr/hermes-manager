@@ -55,7 +55,11 @@ INCLUDE_PATTERNS = [
 
 def run(cmd, cwd=None):
     """Run a shell command. Returns stdout on success; exits with error code on failure."""
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
+    # CREATE_NO_WINDOW (0x08000000) on Windows so console children (git) never
+    # pop a visible CMD window when the cron scheduler launched us console-less.
+    flags = 0x08000000 if os.name == "nt" else 0
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd,
+                            creationflags=flags)
     if result.returncode != 0:
         print(f"Error running command: {cmd}")
         print(f"Stdout: {result.stdout}")
@@ -69,6 +73,11 @@ def _copy_tree_safe(src, dst):
         '*.db-shm', '*.db-wal', '*.lock', '*.db-journal',
         '*state.db.malformed-backup*',  # Large recovery artifacts (100MB+) that exceed GitHub limits
         'state-snapshots/',              # Can be multi-GB
+        # state.db recovery/inspection copies under profiles/* — can be 100MB+ and are NOT
+        # session stores worth backing up; they exceeded GitHub's size limit and blocked
+        # pushes (see hermes-backup-recovery skill).
+        'state_inspect_copy.db', 'state_recovered.db', 'state_recovered_assess.db',
+        '*.db.merged', '*.db.recovered',
     }
     import fnmatch
     os.makedirs(dst, exist_ok=True)
@@ -118,6 +127,12 @@ def main():
         "# Malformed backup files from state.db recovery attempts",
         "*state.db.malformed-backup*",
         "state-snapshots/",
+        "# Large state.db recovery/inspection copies (exceed GitHub 100MB limit)",
+        "state_inspect_copy.db",
+        "state_recovered.db",
+        "state_recovered_assess.db",
+        "*.db.merged",
+        "*.db.recovered",
     ]
     _ensure_gitignore(gitignore_path, GI_ADDITIONS)
 

@@ -131,6 +131,36 @@ hermes profile export <name>   # writes to a .tar.gz archive
 hermes profile import <archive-file>
 ```
 
+### Phase 5b: Publish a Distribution (share with others)
+
+To share an agent so *others* can install/update it (`hermes profile install github.com/you/repo`), build a **distribution** — a git repo (or local dir) containing `distribution.yaml` at root:
+
+```yaml
+name: my-agent
+version: 1.0.0
+description: "..."
+hermes_requires: ">=0.12.0"
+author: "..."
+license: "MIT"
+env_requires:            # becomes .env.EXAMPLE for installers
+  - name: OPENAI_API_KEY
+    description: "..."
+    required: false
+distribution_owned:      # OPTIONAL but recommended: controls exactly what's copied
+  - SOUL.md
+  - config.yaml
+  - skills
+  - scripts              # scripts/ is NOT in the installer's default owned list!
+```
+
+Pitfalls learned from the hermes-manager distribution (2026-08-10):
+- **`.gitignore` FIRST**, before `git add`. A bare `hermes-agent/` ignore pattern ALSO ignores the `skills/.../hermes-agent` skill dir — anchor it: `/hermes-agent/`.
+- **`scripts/` is not installed by default** — the installer's default owned paths are SOUL.md, config.yaml, mcp.json, skills, cron, distribution.yaml. Declare `distribution_owned` explicitly to ship scripts.
+- **`cron/*.json` in a distribution is INERT** — the scheduler only reads `cron/jobs.json`; distribution cron files are copied but never auto-scheduled. Document cron setup commands in the README instead (docs' "not auto-scheduled" hint is just a reminder, not an import).
+- **Test locally before pushing**: `hermes profile install <local-dir> --name <name>-test -y` (use a Windows-style path; MSYS `/c/...` paths are rejected), verify SOUL/skills/scripts landed + no `.env`/`auth.json`, then `hermes profile delete <name>-test --yes`.
+- Installer hard-excludes auth.json, .env, memories/, sessions/, state.db*, logs, caches — but that protects installers, not you. Never commit secrets.
+- Installers' config.yaml is preserved on update unless `--force-config`; `hermes profile info <name>` shows version/source/env requirements.
+
 ### Phase 6: Retire / Archive a Profile
 
 Full retirement when a profile's purpose is finished (never delete blindly — the fleet has archive precedent at `<HERMES_HOME>/archives/`):

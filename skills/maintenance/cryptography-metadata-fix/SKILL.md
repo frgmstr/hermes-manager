@@ -2,7 +2,7 @@
 name: cryptography-metadata-fix
 description: "Fix cryptography Version: None after a failed Hermes update."
 version: 1.0.0
-author: Hermes Agent + KB (Saint Jo, TX)
+author: Hermes Agent + KB
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
