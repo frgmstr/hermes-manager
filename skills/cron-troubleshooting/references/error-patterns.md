@@ -189,7 +189,7 @@ When an X/Twitter API bearer token is depleted, the API returns HTTP 402 instead
 **Fix — switch to twscrape-based scraping**: Use `scrape_posts.py` which leverages the installed twscrape library for unauthenticated Twitter scraping via the guest token flow. This bypasses API credit requirements entirely:
 
 ```bash
-python tools/post-signal-finder/scrape_posts.py --competitors "naval,alexdlaird,billgates,pmarca" --limit 50
+python tools/post-signal-finder/scrape_posts.py --competitors "handle1,handle2,handle3" --limit 50
 # Then score from the local signal cache instead of live API calls
 python tools/post-signal-finder/score_signals.py --min-score 7.0 --hours-since-posted 48
 ```
@@ -198,12 +198,12 @@ python tools/post-signal-finder/score_signals.py --min-score 7.0 --hours-since-p
 
 ## Keyword Matching False Positives — Substring vs Word-Boundary
 
-When scoring posts for narrative opportunities, naive substring matching (`kw in text_lower`) causes severe false positives:
+When scoring posts for keyword opportunities, naive substring matching (`kw in text_lower`) causes severe false positives:
 
 ```
-@BillGates post: "Congratulations to @narendramodi on winning a third term..."
-Keyword "ram" matches inside "NarendraModi" → noHBM narrative triggered
-Result: 95 Bill Gates posts flagged as noHBM opportunities (all false positives)
+Example post: "Congratulations to @exampleuser on winning a third term..."
+Keyword "ram" matches inside "@exampleusername" → narrative trigger fires
+Result: 95 posts flagged as opportunities (all false positives)
 ```
 
 **Root cause**: Python's `in` operator does substring matching. Short keywords like `"ram"`, `"gpu"`, `"vs"` match inside usernames, hashtags, and common words. This is a direct manifestation of the "over-relying on raw engagement signals" pitfall — the keyword signal itself was unreliable.
@@ -222,7 +222,7 @@ def _match_keywords(keywords, text_lower):
     return count
 ```
 
-**Impact**: Before fix → 95 false positive noHBM matches on Bill Gates posts. After fix → zero false positives, only genuine keyword matches remain (6 total across all accounts). Always verify narrative keyword matching with word boundaries in any text-scoring pipeline.
+**Impact**: Before fix → 95 false positive keyword matches across example posts. After fix → zero false positives, only genuine keyword matches remain (6 total across all accounts). Always verify keyword matching with word boundaries in any text-scoring pipeline. This pattern came from a social-monitoring cron that kept firing on unrelated celebrity posts; the word-boundary regex fixed it permanently.
 
 ## State DB Contains Embedded Stale Secrets
 

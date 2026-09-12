@@ -110,6 +110,7 @@ See references/github-publishing.md for full commands and quirks. Summary:
 ## Pitfalls (all hit in production, 2026-08)
 - **`scripts/` is not installed by default** — declare `distribution_owned` explicitly.
 - **`cron/*.json` in a distribution is inert** — the scheduler reads only `cron/jobs.json`; files are copied but never imported. README-document cron setup.
+- `references/distribution-version-checking.md` — version/update comparison recipes (profile info, ls-remote tags; no --dry-run, no ref pinning).
 - **`.gitignore` anchor trap**: a bare `hermes-agent/` pattern also ignores the `skills/.../hermes-agent` skill directory — anchor it: `/hermes-agent/`. (This silently dropped 22 files from the first commit.)
 - **`hermes profile install /c/Users/...` fails** ("Cannot resolve distribution source") — pass Windows-style `C:/Users/...`.
 - **`git archive -o <path>` mangles paths on git-for-Windows** — the zip can land INSIDE the repo (and an unanchored `*.zip` gitignore hides it from `git status`). Use shell redirection: `git archive --format=zip <tag> > /c/Users/<user>/out.zip`.

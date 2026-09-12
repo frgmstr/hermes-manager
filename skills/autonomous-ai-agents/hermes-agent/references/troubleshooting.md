@@ -1,5 +1,77 @@
 # Troubleshooting
 
+## Checking Version & Updates
+
+```bash
+# Check current version and update status
+hermes --version
+# Output: e.g. Hermes Agent v0.21.0 (2026.8.31) · upstream <sha> — your installed version may differ
+
+# Check if updates are available
+hermes update --plan
+# Shows pending updates without applying them
+
+# Apply updates
+hermes update
+```
+
+**Verifying update success:**
+- Run `hermes doctor` after updating to verify all dependencies
+- Check `hermes version` shows the new version
+- Restart the gateway if running: `hermes gateway restart`
+
+**Update pitfalls:**
+- Some config changes may be needed on major version bumps — check release notes
+- Providers/models may need reconfiguration if defaults changed
+- Cron jobs with pinned models are independent of `config.yaml` model changes
+
+## Checking if Your Installation is Up to Date
+
+### Hermes Core
+```bash
+# Check current version and whether an update is pending (fetches origin, changes nothing)
+hermes --version
+hermes update --check
+
+# Compare with: https://github.com/NousResearch/hermes-agent/releases
+```
+
+### Profile Distributions (installed from git repos)
+```bash
+# Check profile version and recorded source
+hermes profile info <name>
+
+# Compare installed version vs upstream tags
+git ls-remote --tags "$(hermes profile info <name> | awk '/^Source:/{print $2}')" | tail -5
+
+# Apply an update when ready (no ref pinning yet — updates track the default branch)
+hermes profile update <name>
+
+# Also reset config.yaml to the distribution's defaults if you want that
+hermes profile update <name> --force-config
+```
+
+### Repository Comparison
+To compare a local distro with GitHub:
+```bash
+cd /path/to/hermes-manager-dist
+git fetch origin
+git log --oneline HEAD..origin/main  # commits to pull
+git log --oneline origin/main..HEAD  # uncommitted local changes
+```
+
+### Checking Hermes Agent GitHub
+```bash
+# Get latest release info
+curl -s https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | jq -r '.tag_name, .published_at'
+
+# Compare versions
+hermes --version  # current
+# compare with: https://github.com/NousResearch/hermes-agent/releases
+```
+
+---
+
 ### Voice not working
 1. Check `stt.enabled: true` in config.yaml
 2. Verify provider: `pip install faster-whisper` or set API key
@@ -51,4 +123,3 @@ hermes config set auxiliary.vision.model <model_name>
 
 ### "Reset permissions" / auto-approving everything
 See `references/security-privacy.md` — wipe the "Always allow" stores, don't touch yolo mode.
-

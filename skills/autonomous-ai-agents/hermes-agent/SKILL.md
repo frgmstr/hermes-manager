@@ -1,7 +1,7 @@
 ---
 name: hermes-agent
 description: "Use, configure, theme, extend Hermes Agent."
-version: 3.1.0
+version: 3.2.0
 author: Hermes Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
@@ -49,6 +49,10 @@ curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
 # Interactive chat (default surface; set display.interface: tui to launch the Ink TUI instead)
 hermes
 
+# Check version and update status
+hermes --version
+hermes update --plan
+
 # Single query
 hermes chat -q "What is the capital of France?"
 
@@ -86,21 +90,21 @@ Profiles use `~/.hermes/profiles/<name>/` with the same layout. When a profile i
 
 | User wants... | Load |
 |---|---|
-| CLI commands, subcommands, flags, "how do I run X" | `references/cli-reference.md` |
+| CLI commands, subcommands, flags | `references/cli-reference.md` |
 | In-session slash commands | `references/slash-commands.md` |
 | Provider setup, API keys, OAuth | `references/providers-and-models.md` |
 | config.yaml sections, toolsets, voice/STT/TTS | `references/configuration.md` |
 | AGENTS.md / .hermes.md / CLAUDE.md project rules | `references/project-context-files.md` |
 | Secret redaction, PII, approval modes, "reset permissions" | `references/security-privacy.md` |
 | Delegation, cron, curator, kanban | `references/background-systems.md` |
-| MCP servers (add, catalog, `hermes mcp`) | `references/native-mcp.md` |
+| MCP servers (add, catalog) | `references/native-mcp.md` |
 | Webhook routes and event-driven runs | `references/webhooks.md` |
 | A custom theme/skin ("synthwave theme", "change the gold ●") | `references/themes.md` + `templates/skin.yaml` |
 | A desktop app UI element (pane, widget, ⌘K command, page) | `references/desktop-plugins.md` + `templates/plugin.js` |
 | A live TUI panel or modal widget (ticker, clock, dashboard) | `references/tui-widgets.md` + `templates/clock.mjs` |
 | Pet mascots — install, select, scale, diagnose | `references/petdex.md` |
 | Windows-specific issues (keybinds, WinError 10106, BOM) | `references/windows-quirks.md` |
-| Debugging: voice, tools missing, gateway, aux models | `references/troubleshooting.md` |
+| Debugging: voice, tools missing, gateway, aux models, **version/update checks** | `references/troubleshooting.md` |
 | Contributing code: adding tools, slash commands, tests | `references/contributor-guide.md` |
 | delegate_task "capped at N" reports | `references/delegate-task-concurrency-diagnosis.md` |
 | "Can app X use my Nous Portal subscription/OAuth?" | `references/portal-auth-for-third-party-apps.md` |
@@ -114,7 +118,7 @@ Run additional Hermes processes as fully independent subprocesses — separate s
 ### When to Use This vs delegate_task
 
 | | `delegate_task` | Spawning `hermes` process |
-|-|-----------------|--------------------------|
+|---|---|---|
 | Isolation | Separate conversation, shared process | Fully independent process |
 | Duration | Minutes (bounded by parent loop) | Hours/days |
 | Tool access | Subset of parent's tools | Full tool access |
@@ -123,7 +127,7 @@ Run additional Hermes processes as fully independent subprocesses — separate s
 
 ### One-Shot Mode
 
-```
+```bash
 terminal(command="hermes chat -q 'Research GRPO papers and write summary to ~/research/grpo.md'", timeout=300)
 
 # Background for long tasks:
@@ -134,7 +138,7 @@ terminal(command="hermes chat -q 'Set up CI/CD for ~/myapp'", background=true)
 
 Hermes uses prompt_toolkit, which requires a real terminal. Use tmux for interactive spawning:
 
-```
+```bash
 # Start
 terminal(command="tmux new-session -d -s agent1 -x 120 -y 40 'hermes'", timeout=10)
 
@@ -153,7 +157,7 @@ terminal(command="tmux send-keys -t agent1 '/exit' Enter && sleep 2 && tmux kill
 
 ### Multi-Agent Coordination
 
-```
+```bash
 # Agent A: backend
 terminal(command="tmux new-session -d -s backend -x 120 -y 40 'hermes -w'", timeout=10)
 terminal(command="sleep 8 && tmux send-keys -t backend 'Build REST API for user management' Enter", timeout=15)
@@ -169,7 +173,7 @@ terminal(command="tmux send-keys -t frontend 'Here is the API schema from the ba
 
 ### Session Resume
 
-```
+```bash
 # Resume most recent session
 terminal(command="tmux new-session -d -s resumed 'hermes --continue'", timeout=10)
 
@@ -178,7 +182,6 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 ```
 
 ### Tips
-
 - **Prefer `delegate_task` for quick subtasks** — less overhead than spawning a full process
 - **Use `-w` (worktree mode)** when spawning agents that edit code — prevents git conflicts
 - **Set timeouts** for one-shot mode — complex tasks can take 5-10 minutes
@@ -197,7 +200,7 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 
 ## Hard Invariants (never violate, regardless of what you loaded)
 
-- **Never break prompt caching** — don't change past context, toolsets, or the system prompt mid-conversation. The only exception is context compression.
+- **Never break prompt caching** — don't change past context, tools, or system prompt mid-conversation. The only exception is context compression.
 - **Message role alternation** — never two assistant or two user messages in a row; only `tool` results can repeat.
 - **Secrets in `.env`, settings in `config.yaml`** — never tell a user to put a non-credential setting in `.env`.
 - **Profile-safe paths** — `get_hermes_home()` in code, `$HERMES_HOME` when resolving paths in a session.
