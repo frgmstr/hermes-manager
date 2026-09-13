@@ -14,13 +14,25 @@ tags: [hermes, profiles, configuration, lifecycle]
 
 Codifies the profile lifecycle workflow for the Default meta-agent. Every step enforces the hard invariants from SOUL.md: resolve paths from `$HERMES_HOME`, never hand-edit `config.yaml` (use `hermes config set`), never store secrets in SOUL.md, and always remind about session restarts after editing another profile's files.
 
-## When to Use
+When to Use
 
-- User asks to create a new specialized profile
-- Profile needs cloning (`--clone`, `--clone-all`, `--clone-from`)
-- Editing an existing profile's SOUL/config safely
-- Export/import of profiles for backup or migration
-- Any profile lifecycle operation that touches another profile's config/skills/memory/cron
+|- User asks to create a new specialized profile
+|- Profile needs cloning (`--clone`, `--clone-all`, `--clone-from`)
+|- Editing an existing profile's SOUL/config safely
+|- Export/import of profiles for backup or migration (CLI **or** in-session slash commands)
+|- Installing/updating a shared distribution via `hermes profile install` / `hermes profile update`
+|- Any profile lifecycle operation that touches another profile's config/skills/memory/cron
+
+## Two ways to do it: CLI vs. In-Session Slash Commands
+
+| Operation | CLI (shell scripts, cron) | Slash command (in-session chat) |
+|---|---|---|
+| Export a profile archive | `hermes profile export <name>` | `/export [profile] [-o out.tar.gz]` |
+| Import/restore from archive | `hermes profile import <archive-file>` | `/import <archive.tar.gz> [--name <name>]` |
+
+- **CLI** is used in scripts, cron jobs, and automation — always available.
+- **Slash commands** (`/export`, `/import`) are registered in-session after the Aug 2026 build; they produce a `.tar.gz` with credentials stripped (config + skills + memory + persona + crons + plugins + themes). Use these when you're already chatting inside Hermes and want to back up or share without leaving the session.
+- Both paths produce the same archive format — an exported profile can be re-imported via either method.
 
 ## Workflow
 
@@ -119,16 +131,30 @@ For model/config changes specifically, also note:
 
 ### Phase 5: Export / Import
 
+Both CLI and in-session slash commands produce the same `.tar.gz` format with credentials stripped. Use CLI for scripts/cron, slash commands when already chatting inside Hermes (Aug 2026 build+).
+
 #### Export (backup or share)
 
+CLI:
 ```bash
 hermes profile export <name>   # writes to a .tar.gz archive
 ```
 
+In-session:
+```
+/export [profile] [-o out.tar.gz]
+```
+
 #### Import (restore from archive)
 
+CLI:
 ```bash
 hermes profile import <archive-file>
+```
+
+In-session:
+```
+/import <archive.tar.gz> [--name <new-name>]
 ```
 
 ### Phase 5b: Publish a Distribution (share with others)
@@ -151,6 +177,22 @@ distribution_owned:      # OPTIONAL but recommended: controls exactly what's cop
   - config.yaml
   - skills
   - scripts              # scripts/ is NOT in the installer's default owned list!
+```
+
+To install a shared distribution:
+
+```bash
+# Install from GitHub repo
+hermes profile install github.com/you/repo --name my-agent -y
+
+# Install from local directory
+hermes profile install /path/to/local/dir --name my-agent-test -y
+
+# Update an existing installed profile (re-syncs skills/config)
+hermes profile update <name>
+
+# Check what's installed and the source/version
+hermes profile info <name>   # shows version/source/env requirements
 ```
 
 Pitfalls learned from the hermes-manager distribution (2026-08-10):
@@ -235,9 +277,17 @@ hermes profile use <name>
 # Show details (model, gateway, skills, .env, SOUL.md status)
 hermes profile show <name>
 
-# Export / Import
-hermes profile export <name>
+# Export / Import (CLI)
+hermes profile export <name>       # writes to a .tar.gz archive
 hermes profile import <archive-file>
+
+# Export / Import (in-session slash commands — Aug 2026 build+)
+/export [profile] [-o out.tar.gz]  # credentials stripped, same format as CLI
+/import <archive.tar.gz> [--name <new-name>]
+
+# Install/update a shared distribution from git or local dir
+hermes profile install github.com/you/repo --name my-agent -y
+hermes profile update <name>       # re-syncs skills/config from source
 
 # Safe config edits per-profile
 hermes -p <name> config set model.default <model-id>
