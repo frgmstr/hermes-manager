@@ -1,7 +1,7 @@
 ---
 name: model-change-checklist
 description: Config locations to update on every LLM swap.
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent + KB
 license: MIT
 platforms: [linux, macos, windows]
@@ -142,6 +142,19 @@ The script:
 - Skips the skill index cache (`.hub/index-cache`) — it is auto-generated
 - Reports any remaining references that need manual attention
 
+### Profile scripts with hardcoded model constants
+
+Some scripts (e.g. `profiles/archality-social-media/scripts/morning_brief.py`) carry their own model defaults (`DEFAULT_MODELS`, `FALLBACK_PREFERENCE`, `DRAFTER`) in Python code — these are NOT touched by config changes or `update_model.py`. Use the bundled `replace_model_in_py.py` helper:
+
+```bash
+python skills/model-change-checklist/scripts/replace_model_in_py.py \
+  --old <old-model-full>,<old-model-short>,<old-prefix1>,<old-prefix2> \
+  --new <new-model> \
+  profiles/archality-social-media/scripts/morning_brief.py
+```
+
+This script auto-orders old-model variants by string length (longest first to avoid partial-match corruption), removes duplicate adjacent entries after replacement (common when full-name + short-alias both map to the same new name), and runs `py_compile` to verify syntax. Use `--dry-run` to preview changes.
+
 ---
 
 ## Common Pitfalls
@@ -151,3 +164,6 @@ The script:
 3. **Profile-specific inference endpoints** (`/p/<profile>/v1`) may have different models loaded than the main endpoint — verify in the server's UI that each profile's model is available.
 4. **Script-only crons (`no_agent: true`)** don't use a model at all — their `model` field can be `null`. Don't waste time updating those.
 5. **`.env` files are for secrets only** — never put model names there (they're ignored).
+6. **Bulk replacements create duplicate list entries** — when both the full-name and short-alias of an old model map to the same new name, list literals end up with duplicates (e.g. `"new-model", "new-model"`). Deduplicate after replacing — the `replace_model_in_py.py` helper handles this automatically.
+7. **Bulk replacements produce historically inaccurate comments** — changelog-style comments like "X removed from default on date Y" become wrong after the swap; rewrite them manually rather than blanket-replacing.
+8. **`python3` may not be available** — use `python` on systems where only `python3` is missing.
