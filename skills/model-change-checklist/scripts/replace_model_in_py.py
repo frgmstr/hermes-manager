@@ -8,7 +8,7 @@ and runs py_compile to verify syntax.
 
 Usage:
     python replace_model_in_py.py \
-      --old microsoft/phi-4-mini-reasoning,phi-4-mini-reasoning,phi-4-mini,phi-4 \
+      --old old-model-full,old-model-short1,old-model-fragment \
       --new ornith-1.5-9b \
       profiles/archality-social-media/scripts/morning_brief.py
 
